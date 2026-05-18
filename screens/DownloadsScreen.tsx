@@ -25,6 +25,7 @@ import {
   Video,
   Camera,
   Radio,
+  Lock,
 } from "lucide-react-native";
 
 import {
@@ -49,6 +50,15 @@ import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
 import { colors } from "../constants/theme";
 
+import {
+  canUseFeature,
+  getUsage,
+  incrementUsage,
+  UsageState,
+} from "../storage/usage";
+
+import { isProUser } from "../storage/subscription";
+
 const QUALITIES: MediaQuality[] = ["audio", "360p", "480p", "720p", "1080p"];
 
 export default function DownloadsScreen() {
@@ -57,10 +67,26 @@ export default function DownloadsScreen() {
   const [downloads, setDownloads] = useState<SavedDownload[]>([]);
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [usage, setUsage] = useState<UsageState | null>(null);
+  const [pro, setPro] = useState(false);
 
   useEffect(() => {
-    loadDownloads();
+    initialize();
   }, []);
+
+  async function initialize() {
+    await Promise.all([loadDownloads(), refreshUsage()]);
+  }
+
+  async function refreshUsage() {
+    const [usageState, proState] = await Promise.all([
+      getUsage(),
+      isProUser(),
+    ]);
+
+    setUsage(usageState);
+    setPro(proState);
+  }
 
   async function loadDownloads() {
     const data = await getDownloads();
@@ -70,6 +96,15 @@ export default function DownloadsScreen() {
   async function handleSave() {
     if (!url.trim()) return Alert.alert("Paste a video URL first");
 
+    const permission = await canUseFeature("download", pro);
+
+    if (!permission.allowed) {
+      return Alert.alert(
+        "Free limit reached",
+        "You have used all free download preparations for today. Upgrade to Pro will unlock unlimited downloads."
+      );
+    }
+
     try {
       setIsAnalyzing(true);
 
@@ -77,7 +112,9 @@ export default function DownloadsScreen() {
       const job = createDownloadJob(metadata, quality);
 
       await saveDownload(url.trim());
-      await loadDownloads();
+      await incrementUsage("download");
+
+      await Promise.all([loadDownloads(), refreshUsage()]);
 
       setJobs((prev) => [
         {
@@ -179,7 +216,46 @@ export default function DownloadsScreen() {
         </GlassCard>
       </Reveal>
 
-      <Reveal delay={100}>
+      <Reveal delay={80}>
+        <GlassCard style={styles.usageCard}>
+          <View style={styles.usageHeader}>
+            <View style={styles.usageIcon}>
+              {pro ? (
+                <Sparkles color={colors.cyan} size={20} />
+              ) : (
+                <Lock color={colors.cyan} size={20} />
+              )}
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.usageTitle}>
+                {pro ? "Pro download access active" : "Daily download usage"}
+              </Text>
+
+              <Text style={styles.usageSub}>
+                {pro
+                  ? "Unlimited download preparation is active in mock Pro mode."
+                  : "Free users can prepare limited downloads per day while Pro is being prepared."}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.usageGrid}>
+            <UsagePill
+              label="Downloads"
+              used={usage?.download || 0}
+              limit={pro ? "∞" : 5}
+            />
+            <UsagePill
+              label="Plan"
+              used={pro ? 1 : 0}
+              limit={pro ? "PRO" : "FREE"}
+            />
+          </View>
+        </GlassCard>
+      </Reveal>
+
+      <Reveal delay={120}>
         <Text style={styles.sectionTitle}>Add media</Text>
 
         <AppTextInput
@@ -396,10 +472,29 @@ function PlatformIcon({
   return <Globe2 color={color} size={size} />;
 }
 
+function UsagePill({
+  label,
+  used,
+  limit,
+}: {
+  label: string;
+  used: number;
+  limit: number | string;
+}) {
+  return (
+    <View style={styles.usagePill}>
+      <Text style={styles.usagePillValue}>
+        {used}/{limit}
+      </Text>
+      <Text style={styles.usagePillLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles: any = {
   hero: {
     padding: 22,
-    marginBottom: 28,
+    marginBottom: 16,
   },
 
   heroIcon: {
@@ -453,6 +548,71 @@ const styles: any = {
   statLabel: {
     color: colors.muted,
     fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+
+  usageCard: {
+    padding: 16,
+    marginBottom: 16,
+  },
+
+  usageHeader: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
+  usageIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: colors.cyanSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+  },
+
+  usageTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 3,
+  },
+
+  usageSub: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+  usageGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  usagePill: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    backgroundColor: "rgba(0,229,255,0.07)",
+    borderRadius: 16,
+    padding: 12,
+  },
+
+  usagePillValue: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+
+  usagePillLabel: {
+    color: colors.muted,
+    fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.8,
