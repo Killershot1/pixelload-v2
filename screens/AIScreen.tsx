@@ -17,9 +17,14 @@ import {
   BrainCircuit,
   WandSparkles,
   PlayCircle,
+  Satellite,
+  RadioTower,
+  MessageCircle,
+  Cpu,
 } from "lucide-react-native";
 
 import { aiSearch, summarizeVideo } from "../services/api";
+
 import AppTextInput from "../components/AppTextInput";
 import GlassCard from "../components/GlassCard";
 import GlowButton from "../components/GlowButton";
@@ -30,7 +35,7 @@ import { colors } from "../constants/theme";
 export default function AIScreen() {
   const [query, setQuery] = useState("");
   const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingMode, setLoadingMode] = useState<"search" | "summary" | null>(null);
   const [results, setResults] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
 
@@ -38,7 +43,7 @@ export default function AIScreen() {
     if (!query.trim()) return Alert.alert("Enter a search query");
 
     try {
-      setLoading(true);
+      setLoadingMode("search");
       setResults([]);
       setSummary(null);
 
@@ -47,7 +52,7 @@ export default function AIScreen() {
     } catch {
       Alert.alert("Error", "Could not connect to Visionco AI");
     } finally {
-      setLoading(false);
+      setLoadingMode(null);
     }
   }
 
@@ -55,7 +60,7 @@ export default function AIScreen() {
     if (!url.trim()) return Alert.alert("Paste a video URL");
 
     try {
-      setLoading(true);
+      setLoadingMode("summary");
       setSummary(null);
       setResults([]);
 
@@ -64,7 +69,7 @@ export default function AIScreen() {
     } catch {
       Alert.alert("Error", "Could not summarize video");
     } finally {
-      setLoading(false);
+      setLoadingMode(null);
     }
   }
 
@@ -79,64 +84,104 @@ export default function AIScreen() {
         <GlassCard style={styles.heroConsole}>
           <Shimmer />
 
-          <View style={styles.heroIcon}>
-            <BrainCircuit color={colors.cyan} size={30} />
+          <View style={styles.orbitRing}>
+            <View style={styles.heroIcon}>
+              <BrainCircuit color={colors.cyan} size={32} />
+            </View>
           </View>
 
           <Text style={styles.title}>Visionco AI</Text>
 
           <Text style={styles.subtitle}>
-            A cosmic intelligence console for discovering, understanding and organizing media.
+            Search the media universe, summarize videos and turn scattered links into intelligence.
           </Text>
 
-          <View style={styles.statusRow}>
-            <View style={styles.liveDot} />
-            <Text style={styles.statusText}>LIVE BACKEND ONLINE</Text>
+          <View style={styles.signalGrid}>
+            <SignalPill icon={<Satellite color={colors.cyan} size={15} />} label="SEARCH" />
+            <SignalPill icon={<RadioTower color={colors.cyan} size={15} />} label="SUMMARY" />
+            <SignalPill icon={<Cpu color={colors.cyan} size={15} />} label="GROQ LIVE" />
           </View>
         </GlassCard>
       </Reveal>
 
       <Reveal delay={100}>
-        <Text style={styles.sectionTitle}>Ask the media universe</Text>
+        <GlassCard style={styles.askCard}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.smallIcon}>
+              <Search color={colors.cyan} size={20} />
+            </View>
 
-        <AppTextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search videos, ideas, trends..."
-          style={{ marginBottom: 14 }}
-        />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Ask the media universe</Text>
+              <Text style={styles.sectionSub}>
+                Discover videos, trends and content ideas using Visionco AI.
+              </Text>
+            </View>
+          </View>
 
-        <GlowButton
-          title="Run AI Search"
-          onPress={handleSearch}
-          icon={<Search color="#020617" size={18} />}
-        />
+          <AppTextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="e.g. best AI business videos..."
+            style={{ marginBottom: 14 }}
+          />
+
+          <GlowButton
+            title={loadingMode === "search" ? "Searching..." : "Run AI Search"}
+            onPress={handleSearch}
+            icon={<Search color="#020617" size={18} />}
+          />
+        </GlassCard>
       </Reveal>
 
-      <Reveal delay={180}>
-        <View style={{ height: 20 }} />
+      <Reveal delay={170}>
+        <GlassCard style={styles.askCard}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.smallIcon}>
+              <WandSparkles color={colors.cyan} size={20} />
+            </View>
 
-        <Text style={styles.sectionTitle}>Summarize any video</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Summarize any video</Text>
+              <Text style={styles.sectionSub}>
+                Paste a link and generate a quick intelligence report.
+              </Text>
+            </View>
+          </View>
 
-        <AppTextInput
-          value={url}
-          onChangeText={setUrl}
-          placeholder="Paste YouTube or video URL..."
-          style={{ marginBottom: 14 }}
-        />
+          <AppTextInput
+            value={url}
+            onChangeText={setUrl}
+            placeholder="Paste YouTube or video URL..."
+            style={{ marginBottom: 14 }}
+          />
 
-        <GlowButton
-          title="Summarize With AI"
-          onPress={handleSummary}
-          icon={<WandSparkles color="#020617" size={18} />}
-        />
+          <GlowButton
+            title={loadingMode === "summary" ? "Summarizing..." : "Summarize With AI"}
+            onPress={handleSummary}
+            icon={<WandSparkles color="#020617" size={18} />}
+          />
+        </GlassCard>
       </Reveal>
 
-      {loading && (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={colors.cyan} />
-          <Text style={styles.loadingText}>Visionco AI is thinking...</Text>
-        </View>
+      {loadingMode && (
+        <Reveal>
+          <GlassCard style={styles.loadingConsole}>
+            <Shimmer />
+
+            <ActivityIndicator size="large" color={colors.cyan} />
+
+            <Text style={styles.loadingTitle}>
+              Visionco AI is thinking
+            </Text>
+
+            <Text style={styles.loadingText}>
+              {loadingMode === "search"
+                ? "Searching the media universe for useful results..."
+                : "Building a video intelligence report..."}
+            </Text>
+          </GlassCard>
+        </Reveal>
       )}
 
       {summary && (
@@ -146,7 +191,7 @@ export default function AIScreen() {
 
             <View style={styles.resultHeader}>
               <View style={styles.resultIcon}>
-                <WandSparkles color={colors.cyan} size={22} />
+                <MessageCircle color={colors.cyan} size={22} />
               </View>
 
               <View style={{ flex: 1 }}>
@@ -227,10 +272,31 @@ export default function AIScreen() {
   );
 }
 
+function SignalPill({ icon, label }: any) {
+  return (
+    <View style={styles.signalPill}>
+      {icon}
+      <Text style={styles.signalText}>{label}</Text>
+    </View>
+  );
+}
+
 const styles: any = {
   heroConsole: {
     padding: 22,
-    marginBottom: 28,
+    marginBottom: 22,
+  },
+
+  orbitRing: {
+    width: 82,
+    height: 82,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.22)",
+    backgroundColor: "rgba(0,229,255,0.045)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
   },
 
   heroIcon: {
@@ -240,16 +306,15 @@ const styles: any = {
     backgroundColor: colors.cyanSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.22)",
   },
 
   title: {
     color: colors.text,
-    fontSize: 38,
+    fontSize: 40,
     fontWeight: "900",
-    letterSpacing: -1.4,
+    letterSpacing: -1.5,
     marginBottom: 10,
   },
 
@@ -260,56 +325,91 @@ const styles: any = {
     marginBottom: 18,
   },
 
-  statusRow: {
-    alignSelf: "flex-start",
+  signalGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+  },
+
+  signalPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.22)",
     backgroundColor: "rgba(0,229,255,0.08)",
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 999,
   },
 
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: colors.cyan,
-  },
-
-  statusText: {
+  signalText: {
     color: colors.cyan,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
   },
 
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-    marginBottom: 12,
+  askCard: {
+    padding: 18,
+    marginBottom: 16,
   },
 
-  loadingBox: {
-    marginTop: 24,
-    marginBottom: 24,
+  cardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+
+  smallIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 17,
+    backgroundColor: colors.cyanSoft,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+  },
+
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+
+  sectionSub: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  loadingConsole: {
+    padding: 22,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 22,
+  },
+
+  loadingTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 18,
+    marginTop: 14,
+    marginBottom: 6,
   },
 
   loadingText: {
     color: colors.muted,
-    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 20,
   },
 
   summaryCard: {
-    marginTop: 24,
+    marginTop: 10,
     marginBottom: 22,
     padding: 18,
   },
@@ -318,7 +418,7 @@ const styles: any = {
     color: colors.text,
     fontSize: 24,
     fontWeight: "900",
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 16,
     letterSpacing: -0.6,
   },
