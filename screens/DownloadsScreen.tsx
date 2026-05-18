@@ -10,8 +10,29 @@ import {
   Linking,
 } from "react-native";
 
-import { Download, ExternalLink, Trash2 } from "lucide-react-native";
-import { getDownloads, saveDownload, clearDownloads, SavedDownload } from "../storage/downloads";
+import {
+  Download,
+  ExternalLink,
+  Trash2,
+  Archive,
+  PlayCircle,
+  Sparkles,
+  Clock3,
+} from "lucide-react-native";
+
+import {
+  getDownloads,
+  saveDownload,
+  clearDownloads,
+  SavedDownload,
+} from "../storage/downloads";
+
+import GlassCard from "../components/GlassCard";
+import GlowButton from "../components/GlowButton";
+import AppTextInput from "../components/AppTextInput";
+import Shimmer from "../components/Shimmer";
+import Reveal from "../components/Reveal";
+import { colors } from "../constants/theme";
 
 export default function DownloadsScreen() {
   const [url, setUrl] = useState("");
@@ -33,64 +54,140 @@ export default function DownloadsScreen() {
     setUrl("");
     await loadDownloads();
 
-    Alert.alert("Saved", "Video saved to your download history");
+    Alert.alert("Saved", "Media added to your vault");
   }
 
   async function handleClear() {
-    await clearDownloads();
-    await loadDownloads();
+    Alert.alert("Clear Vault", "Delete all saved media history?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          await clearDownloads();
+          await loadDownloads();
+        },
+      },
+    ]);
   }
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Downloads</Text>
-      <Text style={styles.subtitle}>Save links, thumbnails and download history locally.</Text>
+      <Reveal>
+        <GlassCard style={styles.hero}>
+          <Shimmer />
 
-      <TextInput
-        value={url}
-        onChangeText={setUrl}
-        placeholder="Paste YouTube/video URL..."
-        placeholderTextColor="#6B7280"
-        style={styles.input}
-      />
+          <View style={styles.heroIcon}>
+            <Archive color={colors.cyan} size={30} />
+          </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Download color="#080A12" size={18} />
-        <Text style={styles.buttonText}>Save Download</Text>
-      </TouchableOpacity>
+          <Text style={styles.title}>Media Vault</Text>
 
-      {downloads.length > 0 && (
-        <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
-          <Trash2 color="#F87171" size={16} />
-          <Text style={styles.clearText}>Clear History</Text>
-        </TouchableOpacity>
-      )}
+          <Text style={styles.subtitle}>
+            Save media links, preview thumbnails and prepare downloads for offline access.
+          </Text>
 
-      {downloads.length === 0 ? (
-        <Text style={styles.empty}>No saved downloads yet.</Text>
-      ) : (
-        downloads.map((item) => (
-          <View key={item.id} style={styles.card}>
-            {item.thumbnail ? (
-              <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-            ) : (
-              <View style={styles.noThumb}>
-                <Text style={styles.noThumbText}>No thumbnail</Text>
-              </View>
-            )}
+          <View style={styles.statsRow}>
+            <View style={styles.statPill}>
+              <Text style={styles.statNumber}>{downloads.length}</Text>
+              <Text style={styles.statLabel}>Saved</Text>
+            </View>
 
-            <View style={{ padding: 16 }}>
-              <Text style={styles.badge}>{item.status.toUpperCase()}</Text>
-              <Text style={styles.cardTitle}>Saved Video</Text>
-              <Text style={styles.cardUrl} numberOfLines={2}>{item.url}</Text>
-              <Text style={styles.cardDate}>{new Date(item.createdAt).toLocaleString()}</Text>
-
-              <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL(item.url)}>
-                <ExternalLink color="#00E5FF" size={16} />
-                <Text style={styles.linkText}>Open Link</Text>
-              </TouchableOpacity>
+            <View style={styles.statPill}>
+              <Text style={styles.statNumber}>Local</Text>
+              <Text style={styles.statLabel}>Storage</Text>
             </View>
           </View>
+        </GlassCard>
+      </Reveal>
+
+      <Reveal delay={100}>
+        <Text style={styles.sectionTitle}>Add media</Text>
+
+        <AppTextInput
+          value={url}
+          onChangeText={setUrl}
+          placeholder="Paste YouTube/video URL..."
+          style={{ marginBottom: 14 }}
+        />
+
+        <GlowButton
+          title="Save To Vault"
+          onPress={handleSave}
+          icon={<Download color="#020617" size={18} />}
+        />
+
+        {downloads.length > 0 && (
+          <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+            <Trash2 color="#F87171" size={16} />
+            <Text style={styles.clearText}>Clear Vault</Text>
+          </TouchableOpacity>
+        )}
+      </Reveal>
+
+      <Reveal delay={180}>
+        <Text style={styles.sectionTitle}>Saved media</Text>
+      </Reveal>
+
+      {downloads.length === 0 ? (
+        <Reveal>
+          <GlassCard style={styles.emptyCard}>
+            <Sparkles color={colors.cyan} size={28} />
+            <Text style={styles.emptyTitle}>Your vault is empty</Text>
+            <Text style={styles.emptyText}>
+              Paste a media link above and PixelLoad will save it here with thumbnail memory.
+            </Text>
+          </GlassCard>
+        </Reveal>
+      ) : (
+        downloads.map((item, index) => (
+          <Reveal key={item.id} delay={index * 70}>
+            <GlassCard style={styles.mediaCard}>
+              <Shimmer />
+
+              {item.thumbnail ? (
+                <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+              ) : (
+                <View style={styles.noThumb}>
+                  <PlayCircle color={colors.dim} size={36} />
+                  <Text style={styles.noThumbText}>No thumbnail detected</Text>
+                </View>
+              )}
+
+              <View style={styles.cardContent}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardIcon}>
+                    <PlayCircle color={colors.cyan} size={22} />
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.badge}>{item.status.toUpperCase()}</Text>
+                    <Text style={styles.cardTitle}>Saved Media</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.cardUrl} numberOfLines={2}>
+                  {item.url}
+                </Text>
+
+                <View style={styles.timeRow}>
+                  <Clock3 color={colors.dim} size={14} />
+                  <Text style={styles.cardDate}>
+                    {new Date(item.createdAt).toLocaleString()}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => Linking.openURL(item.url)}
+                  activeOpacity={0.85}
+                >
+                  <ExternalLink color={colors.cyan} size={16} />
+                  <Text style={styles.linkText}>Open Source</Text>
+                </TouchableOpacity>
+              </View>
+            </GlassCard>
+          </Reveal>
         ))
       )}
     </ScrollView>
@@ -98,73 +195,208 @@ export default function DownloadsScreen() {
 }
 
 const styles: any = {
-  title: { color: "#FFFFFF", fontSize: 34, fontWeight: "900", marginBottom: 6 },
-  subtitle: { color: "#A1A1AA", fontSize: 15, lineHeight: 22, marginBottom: 26 },
-  input: {
-    backgroundColor: "#111827",
+  hero: {
+    padding: 22,
+    marginBottom: 28,
+  },
+
+  heroIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: colors.cyanSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
     borderWidth: 1,
-    borderColor: "#1F2937",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    color: "#FFFFFF",
-    marginBottom: 14,
+    borderColor: "rgba(0,229,255,0.22)",
+  },
+
+  title: {
+    color: colors.text,
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: -1.4,
+    marginBottom: 10,
+  },
+
+  subtitle: {
+    color: colors.muted,
     fontSize: 15,
+    lineHeight: 23,
+    marginBottom: 18,
   },
-  button: {
-    backgroundColor: "#00E5FF",
+
+  statsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  statPill: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+    backgroundColor: "rgba(0,229,255,0.07)",
     borderRadius: 18,
-    paddingVertical: 16,
-    marginBottom: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8,
+    padding: 14,
   },
-  buttonText: { color: "#080A12", fontWeight: "900", fontSize: 15 },
+
+  statNumber: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+
+  statLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+
   clearButton: {
-    borderWidth: 1,
-    borderColor: "#7F1D1D",
-    borderRadius: 16,
-    paddingVertical: 12,
-    marginBottom: 20,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-  },
-  clearText: { color: "#F87171", fontWeight: "800" },
-  empty: { color: "#6B7280", textAlign: "center", marginTop: 30 },
-  card: {
-    backgroundColor: "#111827",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#1F2937",
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  thumbnail: { width: "100%", height: 180, backgroundColor: "#0B0F19" },
-  noThumb: {
-    height: 150,
-    backgroundColor: "#0B0F19",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noThumbText: { color: "#6B7280" },
-  badge: { color: "#00E5FF", fontSize: 11, fontWeight: "900", letterSpacing: 1, marginBottom: 8 },
-  cardTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "900", marginBottom: 8 },
-  cardUrl: { color: "#A1A1AA", lineHeight: 20 },
-  cardDate: { color: "#6B7280", marginTop: 10, fontSize: 12 },
-  linkButton: {
     marginTop: 14,
     borderWidth: 1,
-    borderColor: "#00E5FF",
-    borderRadius: 14,
-    paddingVertical: 11,
+    borderColor: "rgba(248,113,113,0.35)",
+    backgroundColor: "rgba(248,113,113,0.08)",
+    borderRadius: 16,
+    paddingVertical: 13,
+    marginBottom: 24,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
   },
-  linkText: { color: "#00E5FF", fontWeight: "800" },
+
+  clearText: {
+    color: "#F87171",
+    fontWeight: "900",
+  },
+
+  emptyCard: {
+    alignItems: "center",
+    padding: 24,
+    marginBottom: 30,
+  },
+
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 14,
+    marginBottom: 8,
+  },
+
+  emptyText: {
+    color: colors.muted,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  mediaCard: {
+    marginBottom: 18,
+    padding: 0,
+  },
+
+  thumbnail: {
+    width: "100%",
+    height: 190,
+    backgroundColor: "#020617",
+  },
+
+  noThumb: {
+    height: 170,
+    backgroundColor: "rgba(2,6,23,0.72)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+
+  noThumbText: {
+    color: colors.dim,
+    fontWeight: "700",
+  },
+
+  cardContent: {
+    padding: 18,
+  },
+
+  cardHeader: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  cardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: colors.cyanSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.18)",
+  },
+
+  badge: {
+    color: colors.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    marginBottom: 4,
+  },
+
+  cardTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+
+  cardUrl: {
+    color: colors.muted,
+    lineHeight: 21,
+  },
+
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+  },
+
+  cardDate: {
+    color: colors.dim,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  linkButton: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.45)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    borderRadius: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  linkText: {
+    color: colors.cyan,
+    fontWeight: "900",
+  },
 };
