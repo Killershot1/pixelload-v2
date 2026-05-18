@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Text,
-  ScrollView,
-  View,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import { Text, ScrollView, View, TouchableOpacity, Alert } from "react-native";
 
 import {
   User,
@@ -27,6 +21,7 @@ import GlassCard from "../components/GlassCard";
 import GlowButton from "../components/GlowButton";
 import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
+import AdSlot from "../components/AdSlot";
 
 import { resetOnboarding } from "../storage/onboarding";
 import {
@@ -35,11 +30,7 @@ import {
   resetToFreePlan,
   SubscriptionState,
 } from "../storage/subscription";
-import {
-  getUsage,
-  resetUsage,
-  UsageState,
-} from "../storage/usage";
+import { getUsage, resetUsage, UsageState } from "../storage/usage";
 
 import { colors } from "../constants/theme";
 
@@ -63,41 +54,25 @@ export default function ProfileScreen() {
 
   async function handleResetIntro() {
     await resetOnboarding();
-
-    Alert.alert(
-      "Intro reset",
-      "The onboarding intro will show again after you restart the app."
-    );
+    Alert.alert("Intro reset", "The onboarding intro will show again after you restart the app.");
   }
 
   async function handleActivatePro() {
     await activateMockPro();
     await refreshState();
-
-    Alert.alert(
-      "Mock Pro activated",
-      "PixelLoad Pro mode is now active locally for development testing."
-    );
+    Alert.alert("Mock Pro activated", "PixelLoad Pro mode is now active locally for development testing.");
   }
 
   async function handleResetFree() {
     await resetToFreePlan();
     await refreshState();
-
-    Alert.alert(
-      "Free plan restored",
-      "The app is now back on the Free plan locally."
-    );
+    Alert.alert("Free plan restored", "The app is now back on the Free plan locally.");
   }
 
   async function handleResetUsage() {
     await resetUsage();
     await refreshState();
-
-    Alert.alert(
-      "Usage reset",
-      "Daily AI and download usage counters have been reset."
-    );
+    Alert.alert("Usage reset", "Daily AI and download usage counters have been reset.");
   }
 
   const isPro = subscription?.plan === "pro";
@@ -119,15 +94,8 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.planBadge}>
-            {isPro ? (
-              <Unlock color={colors.cyan} size={16} />
-            ) : (
-              <Lock color={colors.cyan} size={16} />
-            )}
-
-            <Text style={styles.planText}>
-              {isPro ? "PRO PLAN ACTIVE" : "FREE PLAN ACTIVE"}
-            </Text>
+            {isPro ? <Unlock color={colors.cyan} size={16} /> : <Lock color={colors.cyan} size={16} />}
+            <Text style={styles.planText}>{isPro ? "PRO PLAN ACTIVE" : "FREE PLAN ACTIVE"}</Text>
           </View>
         </GlassCard>
       </Reveal>
@@ -136,29 +104,10 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account status</Text>
 
         <View style={styles.grid}>
-          <MiniStat
-            icon={<Sparkles color={colors.cyan} size={22} />}
-            label="AI Engine"
-            value="Online"
-          />
-
-          <MiniStat
-            icon={<Server color={colors.cyan} size={22} />}
-            label="Backend"
-            value="Live"
-          />
-
-          <MiniStat
-            icon={<ShieldCheck color={colors.cyan} size={22} />}
-            label="Security"
-            value="HTTPS"
-          />
-
-          <MiniStat
-            icon={<Zap color={colors.cyan} size={22} />}
-            label="Mode"
-            value={isPro ? "Pro" : "Free"}
-          />
+          <MiniStat icon={<Sparkles color={colors.cyan} size={22} />} label="AI Engine" value="Online" />
+          <MiniStat icon={<Server color={colors.cyan} size={22} />} label="Backend" value="Live" />
+          <MiniStat icon={<ShieldCheck color={colors.cyan} size={22} />} label="Security" value="HTTPS" />
+          <MiniStat icon={<Zap color={colors.cyan} size={22} />} label="Mode" value={isPro ? "Pro" : "Free"} />
         </View>
       </Reveal>
 
@@ -174,10 +123,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={{ flex: 1 }}>
-              <Text style={styles.usageTitle}>
-                {isPro ? "Unlimited Pro usage" : "Free daily limits"}
-              </Text>
-
+              <Text style={styles.usageTitle}>{isPro ? "Unlimited Pro usage" : "Free daily limits"}</Text>
               <Text style={styles.usageSub}>
                 {isPro
                   ? "Mock Pro mode removes local free usage limits for testing."
@@ -224,42 +170,28 @@ export default function ProfileScreen() {
         </GlassCard>
       </Reveal>
 
+      <AdSlot placement="profile_upgrade" isProUser={isPro} />
+
       <Reveal delay={280}>
         <Text style={styles.sectionTitle}>Developer controls</Text>
 
         <GlassCard style={styles.devCard}>
-          <TouchableOpacity
-            style={styles.devButton}
-            onPress={handleActivatePro}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.devButton} onPress={handleActivatePro} activeOpacity={0.85}>
             <Unlock color={colors.cyan} size={18} />
             <Text style={styles.devButtonText}>Activate mock Pro</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.devButton}
-            onPress={handleResetFree}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.devButton} onPress={handleResetFree} activeOpacity={0.85}>
             <Lock color={colors.cyan} size={18} />
             <Text style={styles.devButtonText}>Return to Free plan</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.devButton}
-            onPress={handleResetUsage}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.devButton} onPress={handleResetUsage} activeOpacity={0.85}>
             <Trash2 color={colors.cyan} size={18} />
             <Text style={styles.devButtonText}>Reset daily usage</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.devButton}
-            onPress={handleResetIntro}
-            activeOpacity={0.85}
-          >
+          <TouchableOpacity style={styles.devButton} onPress={handleResetIntro} activeOpacity={0.85}>
             <RotateCcw color={colors.cyan} size={18} />
             <Text style={styles.devButtonText}>Reset onboarding intro</Text>
           </TouchableOpacity>
@@ -321,7 +253,6 @@ const styles: any = {
     padding: 22,
     marginBottom: 28,
   },
-
   avatar: {
     width: 72,
     height: 72,
@@ -333,7 +264,6 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.22)",
   },
-
   title: {
     color: colors.text,
     fontSize: 38,
@@ -341,14 +271,12 @@ const styles: any = {
     letterSpacing: -1.4,
     marginBottom: 10,
   },
-
   subtitle: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 23,
     marginBottom: 18,
   },
-
   planBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -361,14 +289,12 @@ const styles: any = {
     paddingVertical: 8,
     borderRadius: 999,
   },
-
   planText: {
     color: colors.cyan,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 1,
   },
-
   sectionTitle: {
     color: colors.text,
     fontSize: 22,
@@ -376,19 +302,16 @@ const styles: any = {
     letterSpacing: -0.5,
     marginBottom: 12,
   },
-
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
     marginBottom: 26,
   },
-
   miniStat: {
     width: "47.8%",
     padding: 16,
   },
-
   miniIcon: {
     width: 42,
     height: 42,
@@ -400,14 +323,12 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.18)",
   },
-
   miniValue: {
     color: colors.text,
     fontSize: 18,
     fontWeight: "900",
     marginBottom: 4,
   },
-
   miniLabel: {
     color: colors.muted,
     fontSize: 12,
@@ -415,19 +336,16 @@ const styles: any = {
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-
   usageCard: {
     padding: 18,
     marginBottom: 26,
   },
-
   usageHeader: {
     flexDirection: "row",
     gap: 12,
     alignItems: "center",
     marginBottom: 16,
   },
-
   usageIcon: {
     width: 46,
     height: 46,
@@ -438,25 +356,21 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.18)",
   },
-
   usageTitle: {
     color: colors.text,
     fontSize: 17,
     fontWeight: "900",
     marginBottom: 4,
   },
-
   usageSub: {
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
   },
-
   usageGrid: {
     flexDirection: "row",
     gap: 10,
   },
-
   usageStat: {
     flex: 1,
     borderWidth: 1,
@@ -465,14 +379,12 @@ const styles: any = {
     borderRadius: 16,
     padding: 12,
   },
-
   usageValue: {
     color: colors.text,
     fontSize: 16,
     fontWeight: "900",
     marginBottom: 4,
   },
-
   usageLabel: {
     color: colors.muted,
     fontSize: 10,
@@ -480,12 +392,10 @@ const styles: any = {
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
-
   proCard: {
     padding: 20,
     marginBottom: 26,
   },
-
   proIcon: {
     width: 58,
     height: 58,
@@ -497,7 +407,6 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.22)",
   },
-
   proTitle: {
     color: colors.text,
     fontSize: 24,
@@ -505,19 +414,16 @@ const styles: any = {
     letterSpacing: -0.6,
     marginBottom: 8,
   },
-
   proText: {
     color: colors.muted,
     lineHeight: 22,
     marginBottom: 18,
   },
-
   devCard: {
     padding: 12,
     marginBottom: 26,
     gap: 10,
   },
-
   devButton: {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.28)",
@@ -530,13 +436,11 @@ const styles: any = {
     justifyContent: "center",
     gap: 9,
   },
-
   devButtonText: {
     color: colors.cyan,
     fontSize: 14,
     fontWeight: "900",
   },
-
   infoRow: {
     padding: 16,
     marginBottom: 12,
@@ -544,7 +448,6 @@ const styles: any = {
     alignItems: "center",
     gap: 12,
   },
-
   infoIcon: {
     width: 40,
     height: 40,
@@ -553,14 +456,12 @@ const styles: any = {
     alignItems: "center",
     justifyContent: "center",
   },
-
   infoTitle: {
     color: colors.text,
     fontSize: 15,
     fontWeight: "900",
     marginBottom: 3,
   },
-
   infoValue: {
     color: colors.muted,
     fontSize: 13,
