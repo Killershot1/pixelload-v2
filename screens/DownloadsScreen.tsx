@@ -20,6 +20,11 @@ import {
   Activity,
   CheckCircle2,
   AlertTriangle,
+  Music2,
+  Globe2,
+  Video,
+  Camera,
+  Radio,
 } from "lucide-react-native";
 
 import {
@@ -35,7 +40,7 @@ import {
   simulateDownload,
 } from "../services/mediaEngine";
 
-import { DownloadJob } from "../types/media";
+import { DownloadJob, MediaQuality, MediaSource } from "../types/media";
 
 import GlassCard from "../components/GlassCard";
 import GlowButton from "../components/GlowButton";
@@ -44,8 +49,11 @@ import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
 import { colors } from "../constants/theme";
 
+const QUALITIES: MediaQuality[] = ["audio", "360p", "480p", "720p", "1080p"];
+
 export default function DownloadsScreen() {
   const [url, setUrl] = useState("");
+  const [quality, setQuality] = useState<MediaQuality>("720p");
   const [downloads, setDownloads] = useState<SavedDownload[]>([]);
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -66,7 +74,7 @@ export default function DownloadsScreen() {
       setIsAnalyzing(true);
 
       const metadata = await analyzeMediaUrl(url.trim());
-      const job = createDownloadJob(metadata, "720p");
+      const job = createDownloadJob(metadata, quality);
 
       await saveDownload(url.trim());
       await loadDownloads();
@@ -92,9 +100,7 @@ export default function DownloadsScreen() {
   async function handleStartDownload(job: DownloadJob) {
     setJobs((prev) =>
       prev.map((j) =>
-        j.id === job.id
-          ? { ...j, status: "downloading", progress: 0 }
-          : j
+        j.id === job.id ? { ...j, status: "downloading", progress: 0 } : j
       )
     );
 
@@ -107,18 +113,12 @@ export default function DownloadsScreen() {
         },
         (progress) => {
           setJobs((prev) =>
-            prev.map((j) =>
-              j.id === job.id ? { ...j, progress } : j
-            )
+            prev.map((j) => (j.id === job.id ? { ...j, progress } : j))
           );
         }
       );
 
-      setJobs((prev) =>
-        prev.map((j) =>
-          j.id === job.id ? completed : j
-        )
-      );
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? completed : j)));
     } catch {
       setJobs((prev) =>
         prev.map((j) =>
@@ -162,7 +162,7 @@ export default function DownloadsScreen() {
           <Text style={styles.title}>Media Vault</Text>
 
           <Text style={styles.subtitle}>
-            Analyze links, build a download queue and prepare media for offline access.
+            Analyze links, choose quality, build a download queue and prepare media for offline access.
           </Text>
 
           <View style={styles.statsRow}>
@@ -185,9 +185,38 @@ export default function DownloadsScreen() {
         <AppTextInput
           value={url}
           onChangeText={setUrl}
-          placeholder="Paste YouTube/video URL..."
+          placeholder="Paste YouTube/TikTok/Instagram URL..."
           style={{ marginBottom: 14 }}
         />
+
+        <Text style={styles.qualityLabel}>Choose quality</Text>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.qualityRail}
+        >
+          {QUALITIES.map((item) => (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.85}
+              style={[
+                styles.qualityPill,
+                quality === item && styles.qualityPillActive,
+              ]}
+              onPress={() => setQuality(item)}
+            >
+              <Text
+                style={[
+                  styles.qualityText,
+                  quality === item && styles.qualityTextActive,
+                ]}
+              >
+                {item.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <GlowButton
           title={isAnalyzing ? "Analyzing..." : "Analyze & Save"}
@@ -227,7 +256,7 @@ export default function DownloadsScreen() {
                 <Image source={{ uri: job.thumbnail }} style={styles.thumbnail} />
               ) : (
                 <View style={styles.noThumb}>
-                  <PlayCircle color={colors.dim} size={36} />
+                  <PlatformIcon source={job.source} size={38} muted />
                   <Text style={styles.noThumbText}>No thumbnail detected</Text>
                 </View>
               )}
@@ -245,7 +274,11 @@ export default function DownloadsScreen() {
                   </View>
 
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.badge}>{job.status.toUpperCase()}</Text>
+                    <View style={styles.platformRow}>
+                      <PlatformBadge source={job.source} />
+                      <Text style={styles.badge}>{job.status.toUpperCase()}</Text>
+                    </View>
+
                     <Text style={styles.cardTitle}>{job.title}</Text>
                   </View>
                 </View>
@@ -266,7 +299,7 @@ export default function DownloadsScreen() {
                 </View>
 
                 <View style={styles.queueMeta}>
-                  <Text style={styles.metaText}>{job.quality}</Text>
+                  <Text style={styles.metaText}>QUALITY: {job.quality.toUpperCase()}</Text>
                   <Text style={styles.metaText}>{job.progress}%</Text>
                 </View>
 
@@ -333,6 +366,34 @@ export default function DownloadsScreen() {
       ))}
     </ScrollView>
   );
+}
+
+function PlatformBadge({ source }: { source: MediaSource }) {
+  return (
+    <View style={styles.platformBadge}>
+      <PlatformIcon source={source} size={13} />
+      <Text style={styles.platformText}>{source.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+function PlatformIcon({
+  source,
+  size = 18,
+  muted = false,
+}: {
+  source: MediaSource;
+  size?: number;
+  muted?: boolean;
+}) {
+  const color = muted ? colors.dim : colors.cyan;
+
+  if (source === "youtube") return <Video color={color} size={size} />;
+  if (source === "instagram") return <Camera color={color} size={size} />;
+  if (source === "facebook") return <Radio color={color} size={size} />;
+  if (source === "tiktok") return <Music2 color={color} size={size} />;
+
+  return <Globe2 color={color} size={size} />;
 }
 
 const styles: any = {
@@ -403,6 +464,46 @@ const styles: any = {
     fontWeight: "900",
     letterSpacing: -0.5,
     marginBottom: 12,
+  },
+
+  qualityLabel: {
+    color: colors.muted,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    fontSize: 12,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+
+  qualityRail: {
+    gap: 10,
+    paddingRight: 20,
+    marginBottom: 16,
+  },
+
+  qualityPill: {
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.18)",
+    backgroundColor: "rgba(148,163,184,0.08)",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+
+  qualityPillActive: {
+    borderColor: "rgba(0,229,255,0.55)",
+    backgroundColor: "rgba(0,229,255,0.14)",
+  },
+
+  qualityText: {
+    color: colors.dim,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
+  qualityTextActive: {
+    color: colors.cyan,
   },
 
   clearButton: {
@@ -495,12 +596,38 @@ const styles: any = {
     borderColor: "rgba(0,229,255,0.18)",
   },
 
+  platformRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 5,
+    flexWrap: "wrap",
+  },
+
+  platformBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.22)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+
+  platformText: {
+    color: colors.cyan,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
   badge: {
     color: colors.cyan,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.1,
-    marginBottom: 4,
   },
 
   cardTitle: {
