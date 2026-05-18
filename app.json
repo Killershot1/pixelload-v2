@@ -8,7 +8,11 @@
     "scheme": "pixelload",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#03040A"
+    },
     "android": {
       "package": "com.visionpixels.pixelload",
       "edgeToEdgeEnabled": true,
@@ -17,27 +21,26 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png",
         "backgroundColor": "#03040A"
-      }
+      },
+      "permissions": [
+        "INTERNET"
+      ]
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.visionpixels.pixelload"
     },
-
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
-
     "plugins": [
       "expo-router"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
-
     "extra": {
       "eas": {
         "projectId": "970a7866-123a-4999-9695-73a9cea22231"
