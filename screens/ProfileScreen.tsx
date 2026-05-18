@@ -16,15 +16,26 @@ import {
   Info,
   Rocket,
   Server,
+  RotateCcw,
 } from "lucide-react-native";
 
 import GlassCard from "../components/GlassCard";
 import GlowButton from "../components/GlowButton";
 import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
+import { resetOnboarding } from "../storage/onboarding";
 import { colors } from "../constants/theme";
 
 export default function ProfileScreen() {
+  async function handleResetIntro() {
+    await resetOnboarding();
+
+    Alert.alert(
+      "Intro reset",
+      "The onboarding intro will show again after you restart the app."
+    );
+  }
+
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <Reveal>
@@ -89,7 +100,20 @@ export default function ProfileScreen() {
         </GlassCard>
       </Reveal>
 
-      <Reveal delay={260}>
+      <Reveal delay={240}>
+        <Text style={styles.sectionTitle}>Developer tools</Text>
+
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={handleResetIntro}
+          activeOpacity={0.85}
+        >
+          <RotateCcw color={colors.cyan} size={18} />
+          <Text style={styles.resetText}>Reset onboarding intro</Text>
+        </TouchableOpacity>
+      </Reveal>
+
+      <Reveal delay={300}>
         <Text style={styles.sectionTitle}>Product info</Text>
 
         <InfoRow title="App" value="PixelLoad V2" />
@@ -258,6 +282,26 @@ const styles: any = {
     color: colors.muted,
     lineHeight: 22,
     marginBottom: 18,
+  },
+
+  resetButton: {
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.35)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    borderRadius: 18,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    marginBottom: 26,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+
+  resetText: {
+    color: colors.cyan,
+    fontSize: 15,
+    fontWeight: "900",
   },
 
   infoRow: {
