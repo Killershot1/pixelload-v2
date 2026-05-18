@@ -31,6 +31,7 @@ import {
   SubscriptionState,
 } from "../storage/subscription";
 import { getUsage, resetUsage, UsageState } from "../storage/usage";
+import { getLocalAppStatus, statusLabel } from "../services/appStatus";
 
 import { colors } from "../constants/theme";
 
@@ -76,6 +77,7 @@ export default function ProfileScreen() {
   }
 
   const isPro = subscription?.plan === "pro";
+  const systems = getLocalAppStatus();
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -101,13 +103,13 @@ export default function ProfileScreen() {
       </Reveal>
 
       <Reveal delay={100}>
-        <Text style={styles.sectionTitle}>Account status</Text>
+        <Text style={styles.sectionTitle}>System status</Text>
 
         <View style={styles.grid}>
-          <MiniStat icon={<Sparkles color={colors.cyan} size={22} />} label="AI Engine" value="Online" />
-          <MiniStat icon={<Server color={colors.cyan} size={22} />} label="Backend" value="Live" />
-          <MiniStat icon={<ShieldCheck color={colors.cyan} size={22} />} label="Security" value="HTTPS" />
-          <MiniStat icon={<Zap color={colors.cyan} size={22} />} label="Mode" value={isPro ? "Pro" : "Free"} />
+          <MiniStat icon={<Sparkles color={colors.cyan} size={22} />} label="AI Engine" value={statusLabel(systems.ai)} />
+          <MiniStat icon={<Server color={colors.cyan} size={22} />} label="Backend" value={statusLabel(systems.api)} />
+          <MiniStat icon={<ShieldCheck color={colors.cyan} size={22} />} label="Storage" value={statusLabel(systems.storage)} />
+          <MiniStat icon={<Zap color={colors.cyan} size={22} />} label="Ads" value={statusLabel(systems.ads)} />
         </View>
       </Reveal>
 
