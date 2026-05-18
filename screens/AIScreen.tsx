@@ -31,6 +31,7 @@ import GlassCard from "../components/GlassCard";
 import GlowButton from "../components/GlowButton";
 import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
+import AdSlot from "../components/AdSlot";
 
 import { colors } from "../constants/theme";
 import { canUseFeature, getUsage, incrementUsage, UsageState } from "../storage/usage";
@@ -180,6 +181,8 @@ export default function AIScreen() {
           </View>
         </GlassCard>
       </Reveal>
+
+      <AdSlot placement="ai_results" isProUser={pro} />
 
       <Reveal delay={140}>
         <GlassCard style={styles.askCard}>
