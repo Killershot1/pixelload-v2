@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
 
 import MainNavigator from "../navigation/MainNavigator";
 import OnboardingScreen from "../screens/OnboardingScreen";
+import BootScreen from "../components/BootScreen";
 
 import { hasSeenOnboarding } from "../storage/onboarding";
-import { colors } from "../constants/theme";
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -17,6 +16,8 @@ export default function App() {
 
   async function initialize() {
     try {
+      await wait(1200);
+
       const seen = await hasSeenOnboarding();
       setShowOnboarding(!seen);
     } finally {
@@ -25,11 +26,7 @@ export default function App() {
   }
 
   if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={colors.cyan} />
-      </View>
-    );
+    return <BootScreen />;
   }
 
   if (showOnboarding) {
@@ -39,11 +36,6 @@ export default function App() {
   return <MainNavigator />;
 }
 
-const styles: any = {
-  loader: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-};
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
