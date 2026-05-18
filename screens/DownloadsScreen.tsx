@@ -48,6 +48,7 @@ import GlowButton from "../components/GlowButton";
 import AppTextInput from "../components/AppTextInput";
 import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
+import AdSlot from "../components/AdSlot";
 import { colors } from "../constants/theme";
 
 import {
@@ -254,6 +255,8 @@ export default function DownloadsScreen() {
           </View>
         </GlassCard>
       </Reveal>
+
+      <AdSlot placement="downloads_queue" isProUser={pro} />
 
       <Reveal delay={120}>
         <Text style={styles.sectionTitle}>Add media</Text>
