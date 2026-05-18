@@ -21,6 +21,7 @@ import {
 import GlassCard from "../components/GlassCard";
 import GlowButton from "../components/GlowButton";
 import Shimmer from "../components/Shimmer";
+import AdSlot from "../components/AdSlot";
 
 import { colors } from "../constants/theme";
 
@@ -93,11 +94,13 @@ export default function HomeScreen() {
     >
       <View style={styles.searchWrap}>
         <Search color={colors.muted} size={20} />
+
         <TextInput
           placeholder="Search videos, links, ideas..."
           placeholderTextColor={colors.dim}
           style={styles.searchInput}
         />
+
         <Sparkles color={colors.cyan} size={20} />
       </View>
 
@@ -106,10 +109,7 @@ export default function HomeScreen() {
           styles.hero,
           {
             opacity: heroOpacity,
-            transform: [
-              { translateY: heroTranslate },
-              { scale: heroScale },
-            ],
+            transform: [{ translateY: heroTranslate }, { scale: heroScale }],
           },
         ]}
       >
@@ -128,7 +128,9 @@ export default function HomeScreen() {
               <Text style={styles.badgeText}>VISIONCO AI ENGINE</Text>
             </View>
 
-            <Text style={styles.heroTitle}>Understand the media universe.</Text>
+            <Text style={styles.heroTitle}>
+              Understand the media universe.
+            </Text>
 
             <Text style={styles.heroSub}>
               Search, summarize, save and download smarter with PixelLoad.
@@ -166,6 +168,8 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.fullListButton} activeOpacity={0.85}>
           <Text style={styles.fullListText}>Check Full List</Text>
         </TouchableOpacity>
+
+        <AdSlot placement="home_featured" />
 
         <SectionHeader
           icon={<Star color="#FACC15" size={18} />}
