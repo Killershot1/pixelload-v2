@@ -7,6 +7,8 @@ import {
   MediaSource,
 } from "../types/media";
 
+import { analyzeVideoProvider } from "./videoProviders";
+
 export function detectMediaSource(url: string): MediaSource {
   const lower = url.toLowerCase();
 
@@ -48,19 +50,13 @@ export function getThumbnail(url: string): string | null {
 }
 
 export async function analyzeMediaUrl(url: string): Promise<MediaMetadata> {
-  const source = detectMediaSource(url);
-  const thumbnail = getThumbnail(url);
+  const result = await analyzeVideoProvider(url);
 
-  return {
-    id: Date.now().toString(),
-    url,
-    source,
-    title: buildFallbackTitle(url, source),
-    thumbnail,
-    durationLabel: null,
-    author: source === "unknown" ? null : source.toUpperCase(),
-    createdAt: new Date().toISOString(),
-  };
+  if (!result.success || !result.metadata) {
+    throw new Error(result.error || "Could not analyze media URL");
+  }
+
+  return result.metadata;
 }
 
 export function createDownloadJob(
@@ -107,14 +103,6 @@ export async function simulateDownload(
     progress: 100,
     fileUri,
   };
-}
-
-function buildFallbackTitle(url: string, source: MediaSource) {
-  if (source === "youtube") return "YouTube Media";
-  if (source === "tiktok") return "TikTok Media";
-  if (source === "instagram") return "Instagram Media";
-  if (source === "facebook") return "Facebook Media";
-  return "Saved Media";
 }
 
 function wait(ms: number) {
