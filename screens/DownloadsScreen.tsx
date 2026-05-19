@@ -14,7 +14,6 @@ import {
   ExternalLink,
   Trash2,
   Archive,
-  PlayCircle,
   Sparkles,
   Clock3,
   Activity,
@@ -41,6 +40,12 @@ import {
   simulateDownload,
 } from "../services/mediaEngine";
 
+import {
+  analyzeDownloadUrl,
+  startDownloadJob,
+  getDownloadProgress,
+} from "../services/downloadApi";
+
 import { DownloadJob, MediaQuality, MediaSource } from "../types/media";
 
 import GlassCard from "../components/GlassCard";
@@ -49,7 +54,9 @@ import AppTextInput from "../components/AppTextInput";
 import Shimmer from "../components/Shimmer";
 import Reveal from "../components/Reveal";
 import AdSlot from "../components/AdSlot";
+
 import { colors } from "../constants/theme";
+import { isFeatureEnabled } from "../config/features";
 
 import {
   canUseFeature,
@@ -71,6 +78,8 @@ export default function DownloadsScreen() {
   const [usage, setUsage] = useState<UsageState | null>(null);
   const [pro, setPro] = useState(false);
 
+  const realDownloaderEnabled = isFeatureEnabled("realDownloaderApi");
+
   useEffect(() => {
     initialize();
   }, []);
@@ -80,11 +89,7 @@ export default function DownloadsScreen() {
   }
 
   async function refreshUsage() {
-    const [usageState, proState] = await Promise.all([
-      getUsage(),
-      isProUser(),
-    ]);
-
+    const [usageState, proState] = await Promise.all([getUsage(), isProUser()]);
     setUsage(usageState);
     setPro(proState);
   }
@@ -109,25 +114,29 @@ export default function DownloadsScreen() {
     try {
       setIsAnalyzing(true);
 
-      const metadata = await analyzeMediaUrl(url.trim());
+      const metadata = realDownloaderEnabled
+        ? (await analyzeDownloadUrl(url.trim())).metadata
+        : await analyzeMediaUrl(url.trim());
+
+      if (!metadata) {
+        throw new Error("Could not analyze media");
+      }
+
       const job = createDownloadJob(metadata, quality);
 
       await saveDownload(url.trim());
       await incrementUsage("download");
-
       await Promise.all([loadDownloads(), refreshUsage()]);
 
-      setJobs((prev) => [
-        {
-          ...job,
-          status: "ready",
-          progress: 0,
-        },
-        ...prev,
-      ]);
-
+      setJobs((prev) => [{ ...job, status: "ready", progress: 0 }, ...prev]);
       setUrl("");
-      Alert.alert("Ready", "Media analyzed and added to your download queue");
+
+      Alert.alert(
+        "Ready",
+        realDownloaderEnabled
+          ? "Media analyzed using the real downloader API."
+          : "Media analyzed in simulated downloader mode."
+      );
     } catch {
       Alert.alert("Error", "Could not analyze this media link");
     } finally {
@@ -136,6 +145,15 @@ export default function DownloadsScreen() {
   }
 
   async function handleStartDownload(job: DownloadJob) {
+    if (realDownloaderEnabled) {
+      await handleRealDownload(job);
+      return;
+    }
+
+    await handleSimulatedDownload(job);
+  }
+
+  async function handleSimulatedDownload(job: DownloadJob) {
     setJobs((prev) =>
       prev.map((j) =>
         j.id === job.id ? { ...j, status: "downloading", progress: 0 } : j
@@ -144,11 +162,7 @@ export default function DownloadsScreen() {
 
     try {
       const completed = await simulateDownload(
-        {
-          ...job,
-          status: "downloading",
-          progress: 0,
-        },
+        { ...job, status: "downloading", progress: 0 },
         (progress) => {
           setJobs((prev) =>
             prev.map((j) => (j.id === job.id ? { ...j, progress } : j))
@@ -161,14 +175,80 @@ export default function DownloadsScreen() {
       setJobs((prev) =>
         prev.map((j) =>
           j.id === job.id
+            ? { ...j, status: "failed", error: "Download failed" }
+            : j
+        )
+      );
+    }
+  }
+
+  async function handleRealDownload(job: DownloadJob) {
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === job.id ? { ...j, status: "downloading", progress: 0 } : j
+      )
+    );
+
+    const started = await startDownloadJob(job.url, job.quality);
+
+    if (!started.success || !started.job) {
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === job.id
             ? {
                 ...j,
                 status: "failed",
-                error: "Download failed",
+                error: started.error || "Could not start real download",
               }
             : j
         )
       );
+      return;
+    }
+
+    const apiJob = started.job;
+
+    setJobs((prev) =>
+      prev.map((j) => (j.id === job.id ? { ...apiJob, status: "downloading" } : j))
+    );
+
+    for (let i = 0; i < 30; i++) {
+      await wait(1200);
+
+      const progress = await getDownloadProgress(apiJob.id);
+
+      if (!progress.success) {
+        setJobs((prev) =>
+          prev.map((j) =>
+            j.id === apiJob.id
+              ? {
+                  ...j,
+                  status: "failed",
+                  error: progress.error || "Progress check failed",
+                }
+              : j
+          )
+        );
+        return;
+      }
+
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === apiJob.id
+            ? {
+                ...j,
+                progress: progress.progress,
+                status: progress.status,
+                fileUri: progress.fileUri,
+                error: progress.error,
+              }
+            : j
+        )
+      );
+
+      if (progress.status === "completed" || progress.status === "failed") {
+        return;
+      }
     }
   }
 
@@ -214,6 +294,12 @@ export default function DownloadsScreen() {
               <Text style={styles.statLabel}>Queue</Text>
             </View>
           </View>
+
+          <View style={styles.modePill}>
+            <Text style={styles.modeText}>
+              {realDownloaderEnabled ? "REAL API MODE" : "SIMULATION MODE"}
+            </Text>
+          </View>
         </GlassCard>
       </Reveal>
 
@@ -221,11 +307,7 @@ export default function DownloadsScreen() {
         <GlassCard style={styles.usageCard}>
           <View style={styles.usageHeader}>
             <View style={styles.usageIcon}>
-              {pro ? (
-                <Sparkles color={colors.cyan} size={20} />
-              ) : (
-                <Lock color={colors.cyan} size={20} />
-              )}
+              {pro ? <Sparkles color={colors.cyan} size={20} /> : <Lock color={colors.cyan} size={20} />}
             </View>
 
             <View style={{ flex: 1 }}>
@@ -242,16 +324,8 @@ export default function DownloadsScreen() {
           </View>
 
           <View style={styles.usageGrid}>
-            <UsagePill
-              label="Downloads"
-              used={usage?.download || 0}
-              limit={pro ? "∞" : 5}
-            />
-            <UsagePill
-              label="Plan"
-              used={pro ? 1 : 0}
-              limit={pro ? "PRO" : "FREE"}
-            />
+            <UsagePill label="Downloads" used={usage?.download || 0} limit={pro ? "∞" : 5} />
+            <UsagePill label="Plan" used={pro ? 1 : 0} limit={pro ? "PRO" : "FREE"} />
           </View>
         </GlassCard>
       </Reveal>
@@ -279,18 +353,10 @@ export default function DownloadsScreen() {
             <TouchableOpacity
               key={item}
               activeOpacity={0.85}
-              style={[
-                styles.qualityPill,
-                quality === item && styles.qualityPillActive,
-              ]}
+              style={[styles.qualityPill, quality === item && styles.qualityPillActive]}
               onPress={() => setQuality(item)}
             >
-              <Text
-                style={[
-                  styles.qualityText,
-                  quality === item && styles.qualityTextActive,
-                ]}
-              >
+              <Text style={[styles.qualityText, quality === item && styles.qualityTextActive]}>
                 {item.toUpperCase()}
               </Text>
             </TouchableOpacity>
@@ -367,14 +433,7 @@ export default function DownloadsScreen() {
                 </Text>
 
                 <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${job.progress}%`,
-                      },
-                    ]}
-                  />
+                  <View style={[styles.progressFill, { width: `${job.progress}%` }]} />
                 </View>
 
                 <View style={styles.queueMeta}>
@@ -397,6 +456,14 @@ export default function DownloadsScreen() {
                   <View style={styles.completedBox}>
                     <Text style={styles.completedText}>
                       Saved locally: {job.fileUri}
+                    </Text>
+                  </View>
+                )}
+
+                {job.status === "failed" && (
+                  <View style={styles.failedBox}>
+                    <Text style={styles.failedText}>
+                      {job.error || "Download failed"}
                     </Text>
                   </View>
                 )}
@@ -494,12 +561,12 @@ function UsagePill({
   );
 }
 
-const styles: any = {
-  hero: {
-    padding: 22,
-    marginBottom: 16,
-  },
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
+const styles: any = {
+  hero: { padding: 22, marginBottom: 16 },
   heroIcon: {
     width: 64,
     height: 64,
@@ -511,7 +578,6 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.22)",
   },
-
   title: {
     color: colors.text,
     fontSize: 38,
@@ -519,19 +585,8 @@ const styles: any = {
     letterSpacing: -1.4,
     marginBottom: 10,
   },
-
-  subtitle: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 23,
-    marginBottom: 18,
-  },
-
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
+  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 23, marginBottom: 18 },
+  statsRow: { flexDirection: "row", gap: 10 },
   statPill: {
     flex: 1,
     borderWidth: 1,
@@ -540,14 +595,7 @@ const styles: any = {
     borderRadius: 18,
     padding: 14,
   },
-
-  statNumber: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 4,
-  },
-
+  statNumber: { color: colors.text, fontSize: 18, fontWeight: "900", marginBottom: 4 },
   statLabel: {
     color: colors.muted,
     fontSize: 12,
@@ -555,19 +603,24 @@ const styles: any = {
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-
-  usageCard: {
-    padding: 16,
-    marginBottom: 16,
+  modePill: {
+    alignSelf: "flex-start",
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.22)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-
-  usageHeader: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-    marginBottom: 14,
+  modeText: {
+    color: colors.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
-
+  usageCard: { padding: 16, marginBottom: 16 },
+  usageHeader: { flexDirection: "row", gap: 12, alignItems: "center", marginBottom: 14 },
   usageIcon: {
     width: 42,
     height: 42,
@@ -578,25 +631,9 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.18)",
   },
-
-  usageTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "900",
-    marginBottom: 3,
-  },
-
-  usageSub: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-
-  usageGrid: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
+  usageTitle: { color: colors.text, fontSize: 16, fontWeight: "900", marginBottom: 3 },
+  usageSub: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  usageGrid: { flexDirection: "row", gap: 10 },
   usagePill: {
     flex: 1,
     borderWidth: 1,
@@ -605,14 +642,7 @@ const styles: any = {
     borderRadius: 16,
     padding: 12,
   },
-
-  usagePillValue: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "900",
-    marginBottom: 4,
-  },
-
+  usagePillValue: { color: colors.text, fontSize: 17, fontWeight: "900", marginBottom: 4 },
   usagePillLabel: {
     color: colors.muted,
     fontSize: 11,
@@ -620,7 +650,6 @@ const styles: any = {
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-
   sectionTitle: {
     color: colors.text,
     fontSize: 22,
@@ -628,7 +657,6 @@ const styles: any = {
     letterSpacing: -0.5,
     marginBottom: 12,
   },
-
   qualityLabel: {
     color: colors.muted,
     fontWeight: "900",
@@ -637,13 +665,7 @@ const styles: any = {
     letterSpacing: 1,
     marginBottom: 10,
   },
-
-  qualityRail: {
-    gap: 10,
-    paddingRight: 20,
-    marginBottom: 16,
-  },
-
+  qualityRail: { gap: 10, paddingRight: 20, marginBottom: 16 },
   qualityPill: {
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.18)",
@@ -652,23 +674,12 @@ const styles: any = {
     paddingVertical: 10,
     borderRadius: 999,
   },
-
   qualityPillActive: {
     borderColor: "rgba(0,229,255,0.55)",
     backgroundColor: "rgba(0,229,255,0.14)",
   },
-
-  qualityText: {
-    color: colors.dim,
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-
-  qualityTextActive: {
-    color: colors.cyan,
-  },
-
+  qualityText: { color: colors.dim, fontSize: 12, fontWeight: "900", letterSpacing: 0.8 },
+  qualityTextActive: { color: colors.cyan },
   clearButton: {
     marginTop: 14,
     borderWidth: 1,
@@ -682,18 +693,8 @@ const styles: any = {
     alignItems: "center",
     gap: 8,
   },
-
-  clearText: {
-    color: "#F87171",
-    fontWeight: "900",
-  },
-
-  emptyCard: {
-    alignItems: "center",
-    padding: 24,
-    marginBottom: 30,
-  },
-
+  clearText: { color: "#F87171", fontWeight: "900" },
+  emptyCard: { alignItems: "center", padding: 24, marginBottom: 30 },
   emptyTitle: {
     color: colors.text,
     fontSize: 20,
@@ -701,29 +702,10 @@ const styles: any = {
     marginTop: 14,
     marginBottom: 8,
   },
-
-  emptyText: {
-    color: colors.muted,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-
-  mediaCard: {
-    marginBottom: 18,
-    padding: 0,
-  },
-
-  historyCard: {
-    marginBottom: 14,
-    padding: 18,
-  },
-
-  thumbnail: {
-    width: "100%",
-    height: 190,
-    backgroundColor: "#020617",
-  },
-
+  emptyText: { color: colors.muted, textAlign: "center", lineHeight: 22 },
+  mediaCard: { marginBottom: 18, padding: 0 },
+  historyCard: { marginBottom: 14, padding: 18 },
+  thumbnail: { width: "100%", height: 190, backgroundColor: "#020617" },
   noThumb: {
     height: 170,
     backgroundColor: "rgba(2,6,23,0.72)",
@@ -731,23 +713,9 @@ const styles: any = {
     justifyContent: "center",
     gap: 10,
   },
-
-  noThumbText: {
-    color: colors.dim,
-    fontWeight: "700",
-  },
-
-  cardContent: {
-    padding: 18,
-  },
-
-  cardHeader: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-
+  noThumbText: { color: colors.dim, fontWeight: "700" },
+  cardContent: { padding: 18 },
+  cardHeader: { flexDirection: "row", gap: 12, alignItems: "center", marginBottom: 12 },
   cardIcon: {
     width: 44,
     height: 44,
@@ -758,7 +726,6 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.18)",
   },
-
   platformRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -766,7 +733,6 @@ const styles: any = {
     marginBottom: 5,
     flexWrap: "wrap",
   },
-
   platformBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -778,40 +744,11 @@ const styles: any = {
     paddingVertical: 4,
     borderRadius: 999,
   },
-
-  platformText: {
-    color: colors.cyan,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-
-  badge: {
-    color: colors.cyan,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.1,
-  },
-
-  cardTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: -0.4,
-  },
-
-  cardUrl: {
-    color: colors.muted,
-    lineHeight: 21,
-  },
-
-  cardDate: {
-    color: colors.dim,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 10,
-  },
-
+  platformText: { color: colors.cyan, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  badge: { color: colors.cyan, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
+  cardTitle: { color: colors.text, fontSize: 18, fontWeight: "900", letterSpacing: -0.4 },
+  cardUrl: { color: colors.muted, lineHeight: 21 },
+  cardDate: { color: colors.dim, fontSize: 12, fontWeight: "700", marginTop: 10 },
   progressTrack: {
     height: 9,
     borderRadius: 999,
@@ -819,25 +756,9 @@ const styles: any = {
     marginTop: 16,
     overflow: "hidden",
   },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.cyan,
-  },
-
-  queueMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-
-  metaText: {
-    color: colors.dim,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
+  progressFill: { height: "100%", borderRadius: 999, backgroundColor: colors.cyan },
+  queueMeta: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  metaText: { color: colors.dim, fontSize: 12, fontWeight: "800" },
   linkButton: {
     marginTop: 16,
     borderWidth: 1,
@@ -850,12 +771,7 @@ const styles: any = {
     alignItems: "center",
     gap: 8,
   },
-
-  linkText: {
-    color: colors.cyan,
-    fontWeight: "900",
-  },
-
+  linkText: { color: colors.cyan, fontWeight: "900" },
   completedBox: {
     marginTop: 16,
     padding: 12,
@@ -864,10 +780,14 @@ const styles: any = {
     borderWidth: 1,
     borderColor: "rgba(0,229,255,0.2)",
   },
-
-  completedText: {
-    color: colors.cyan,
-    fontSize: 12,
-    fontWeight: "800",
+  completedText: { color: colors.cyan, fontSize: 12, fontWeight: "800" },
+  failedBox: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(248,113,113,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.25)",
   },
+  failedText: { color: "#F87171", fontSize: 12, fontWeight: "800" },
 };
