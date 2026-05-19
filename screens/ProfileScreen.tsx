@@ -15,6 +15,8 @@ import {
   Unlock,
   Trash2,
   Gauge,
+  Cloud,
+  HardDriveDownload,
 } from "lucide-react-native";
 
 import GlassCard from "../components/GlassCard";
@@ -32,12 +34,15 @@ import {
 } from "../storage/subscription";
 import { getUsage, resetUsage, UsageState } from "../storage/usage";
 import { getLocalAppStatus, statusLabel } from "../services/appStatus";
+import { isFeatureEnabled } from "../config/features";
 
 import { colors } from "../constants/theme";
 
 export default function ProfileScreen() {
   const [subscription, setSubscription] = useState<SubscriptionState | null>(null);
   const [usage, setUsage] = useState<UsageState | null>(null);
+
+  const realDownloaderEnabled = isFeatureEnabled("realDownloaderApi");
 
   useEffect(() => {
     refreshState();
@@ -113,7 +118,39 @@ export default function ProfileScreen() {
         </View>
       </Reveal>
 
-      <Reveal delay={160}>
+      <Reveal delay={140}>
+        <Text style={styles.sectionTitle}>Downloader mode</Text>
+
+        <GlassCard style={styles.backendCard}>
+          <Shimmer />
+
+          <View style={styles.backendIcon}>
+            {realDownloaderEnabled ? (
+              <Cloud color={colors.cyan} size={28} />
+            ) : (
+              <HardDriveDownload color={colors.cyan} size={28} />
+            )}
+          </View>
+
+          <Text style={styles.backendTitle}>
+            {realDownloaderEnabled ? "Real backend enabled" : "Simulation mode active"}
+          </Text>
+
+          <Text style={styles.backendText}>
+            {realDownloaderEnabled
+              ? "PixelLoad will send download analysis and progress requests to the real Vision Pixels downloader API."
+              : "PixelLoad is currently using the safe local simulation engine. This keeps testing stable until the backend downloader is fully ready."}
+          </Text>
+
+          <View style={styles.backendPill}>
+            <Text style={styles.backendPillText}>
+              {realDownloaderEnabled ? "REAL API MODE" : "SAFE SIMULATION"}
+            </Text>
+          </View>
+        </GlassCard>
+      </Reveal>
+
+      <Reveal delay={180}>
         <Text style={styles.sectionTitle}>Daily usage</Text>
 
         <GlassCard style={styles.usageCard}>
@@ -142,7 +179,7 @@ export default function ProfileScreen() {
         </GlassCard>
       </Reveal>
 
-      <Reveal delay={220}>
+      <Reveal delay={240}>
         <Text style={styles.sectionTitle}>Upgrade path</Text>
 
         <GlassCard style={styles.proCard}>
@@ -174,7 +211,7 @@ export default function ProfileScreen() {
 
       <AdSlot placement="profile_upgrade" isProUser={isPro} />
 
-      <Reveal delay={280}>
+      <Reveal delay={300}>
         <Text style={styles.sectionTitle}>Developer controls</Text>
 
         <GlassCard style={styles.devCard}>
@@ -200,7 +237,7 @@ export default function ProfileScreen() {
         </GlassCard>
       </Reveal>
 
-      <Reveal delay={340}>
+      <Reveal delay={360}>
         <Text style={styles.sectionTitle}>Product info</Text>
 
         <InfoRow title="App" value="PixelLoad V2" />
@@ -337,6 +374,48 @@ const styles: any = {
     fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.8,
+  },
+  backendCard: {
+    padding: 20,
+    marginBottom: 26,
+  },
+  backendIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: colors.cyanSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.22)",
+  },
+  backendTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  backendText: {
+    color: colors.muted,
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  backendPill: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(0,229,255,0.22)",
+    backgroundColor: "rgba(0,229,255,0.08)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  backendPillText: {
+    color: colors.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   usageCard: {
     padding: 18,
